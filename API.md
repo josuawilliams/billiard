@@ -495,7 +495,7 @@ Contoh response (200):
       "start_time": "14:00:00",
       "end_time": "16:00:00",
       "total_price": "100000.00",
-      "status": "pending",
+      "status": "paid",
       "created_at": "2026-08-13T03:47:38.000000Z",
       "updated_at": "2026-08-13T03:47:38.000000Z",
       "table": {
@@ -507,9 +507,9 @@ Contoh response (200):
       },
       "payment": {
         "id": 1,
-        "booking_id": 1,
+        "booking_id": 4,
         "payment_gateway": "mock",
-        "transaction_id": "INV-1-OILN9D",
+        "transaction_id": "INV-4-OILN9D",
         "amount": "100000.00",
         "status": "success",
         "paid_at": "2026-08-13T03:41:10.000000Z",
@@ -680,13 +680,13 @@ Contoh response (200):
         }
       }
     ],
-    "first_page_url": "http://127.0.0.1:8000/api/admin/bookings?page=1",
+    "first_page_url": "http://localhost:8000/api/admin/bookings?page=1",
     "from": 1,
     "last_page": 1,
-    "last_page_url": "http://127.0.0.1:8000/api/admin/bookings?page=1",
+    "last_page_url": "http://localhost:8000/api/admin/bookings?page=1",
     "links": [],
     "next_page_url": null,
-    "path": "http://127.0.0.1:8000/api/admin/bookings",
+    "path": "http://localhost:8000/api/admin/bookings",
     "per_page": 20,
     "prev_page_url": null,
     "to": 1,
@@ -884,7 +884,17 @@ Contoh response (200 — replay, sudah diproses):
 {
   "success": true,
   "message": "Payment already processed",
-  "data": { ... }
+  "data": {
+    "id": 4,
+    "booking_id": 6,
+    "payment_gateway": "mock",
+    "transaction_id": "INV-6-NDRZEM",
+    "amount": "75000.00",
+    "status": "success",
+    "paid_at": "2026-08-13T03:47:54.000000Z",
+    "created_at": "2026-08-13T03:47:54.000000Z",
+    "updated_at": "2026-08-13T03:47:54.000000Z"
+  }
 }
 ```
 
@@ -994,13 +1004,13 @@ Contoh response (200):
         }
       }
     ],
-    "first_page_url": "http://127.0.0.1:8000/api/admin/payments?page=1",
+    "first_page_url": "http://localhost:8000/api/admin/payments?page=1",
     "from": 1,
     "last_page": 1,
-    "last_page_url": "http://127.0.0.1:8000/api/admin/payments?page=1",
+    "last_page_url": "http://localhost:8000/api/admin/payments?page=1",
     "links": [],
     "next_page_url": null,
-    "path": "http://127.0.0.1:8000/api/admin/payments",
+    "path": "http://localhost:8000/api/admin/payments",
     "per_page": 20,
     "prev_page_url": null,
     "to": 1,

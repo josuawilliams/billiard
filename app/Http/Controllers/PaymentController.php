@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreatePaymentRequest;
-use App\Models\Booking;
 use App\Models\Payment;
 use App\Services\PaymentService;
 use App\Support\ApiResponse;
