@@ -127,6 +127,42 @@ app/
       └── ExpireBookingJob.php
 ```
 
+## 7b. Standar Response & Dokumentasi API
+
+### Response Envelope (dipakai konsisten di semua endpoint)
+
+Sukses:
+```json
+{ "success": true, "message": "Booking created", "data": { } }
+```
+
+Error:
+```json
+{ "success": false, "message": "Table already booked", "errors": { "field": ["msg"] } }
+```
+
+Aturan:
+- Selalu `success` boolean + HTTP status code sesuai.
+- `message` selalu ada (sukses & error).
+- `data` hanya pada respons sukses yang membawa payload.
+- `errors` (object validasi) hanya pada error validasi.
+- Implementasi lewat dua helper `responseSuccess` / `responseError` (API response helper) supaya output konsisten.
+
+### HTTP Status yang dipakai
+- 200 — sukses/read
+- 201 — created (register, booking, table)
+- 401 — unauthenticated (belum login)
+- 403 — forbidden (bukan admin / bukan pemilik)
+- 409 — conflict (double booking)
+- 422 — validation error
+- 404 — resource tidak ditemukan
+
+### Dokumentasi API terpadu
+Satu file `API.md` di root project berisi semua dokumentasi:
+- Skema standar response (envelope di atas)
+- Setiap endpoint: method, URL, auth required, request body (input), contoh request, contoh response sukses & error (output)
+- Konsisten dengan implementasi nyata.
+
 ## 8. API Endpoints
 
 Semua route di `routes/api.php`, prefix `/api`, response JSON.
