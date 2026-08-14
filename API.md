@@ -4,6 +4,7 @@
 
 - **Base URL:** `http://localhost:8000/api`
 - **Format:** Seluruh request & response menggunakan `application/json`.
+- **Pure JSON API:** Backend murni JSON — setiap route (termasuk root `/` dan seluruh response error) mengembalikan JSON. HTML view / halaman error tidak dirender.
 - **Autentikasi:** Hampir semua endpoint (kecuali yang bertanda *Public*) membutuhkan token Bearer yang diperoleh dari `POST /api/login` atau `POST /api/register`.
   Header yang dikirim:
   ```
@@ -43,7 +44,7 @@ Error yang dihasilkan aplikasi (`ApiResponse::error`) memakai envelope:
 }
 ```
 
-Catatan: error validasi (422) dan "Unauthenticated" (401) berasal dari framework Laravel, bukan dari `ApiResponse`, sehingga bentuknya berbeda (lihat detail di tiap endpoint).
+Catatan: exception handler kini merender **semua** error sebagai JSON — terlepas dari header `Accept` — termasuk 404 dan 500, sehingga tidak ada halaman error HTML. Response unauthenticated (401) dan not-found (404) memakai envelope `ApiResponse` yang konsisten. Hanya error validasi (422) yang tetap memakai bentuk framework Laravel (`{"message": "...", "errors": {...}}`), lihat detail di tiap endpoint.
 
 ### 2.3 Daftar HTTP Status
 
@@ -65,6 +66,7 @@ Catatan: error validasi (422) dan "Unauthenticated" (401) berasal dari framework
 
 | Method | URL | Auth |
 |---|---|---|
+| `GET` | `/` | Public |
 | `POST` | `/api/register` | Public |
 | `POST` | `/api/login` | Public |
 | `POST` | `/api/logout` | User |
@@ -80,6 +82,26 @@ Catatan: error validasi (422) dan "Unauthenticated" (401) berasal dari framework
 | `GET` | `/api/payment/status/{id}` | User |
 | `POST` | `/api/payment/webhook` | Public |
 | `GET` | `/api/admin/payments` | Admin |
+
+---
+
+### GET /
+
+| | |
+|---|---|
+| Auth | Public |
+
+Endpoint health-check / root. Menandakan server API berjalan.
+
+Contoh response (200):
+
+```json
+{
+  "success": true,
+  "message": "Billiard API",
+  "data": null
+}
+```
 
 ---
 
@@ -218,6 +240,7 @@ Contoh response error (401 — token sudah tidak aktif):
 
 ```json
 {
+  "success": false,
   "message": "Unauthenticated."
 }
 ```
@@ -272,6 +295,7 @@ Contoh response error (401 — belum login):
 
 ```json
 {
+  "success": false,
   "message": "Unauthenticated."
 }
 ```
@@ -359,7 +383,8 @@ Contoh response error (404 — id tidak ditemukan):
 
 ```json
 {
-  "message": "No query results for model [App\\Models\\Table] 9999"
+  "success": false,
+  "message": "Not Found"
 }
 ```
 
@@ -608,7 +633,8 @@ Contoh response error (404 — id tidak ditemukan):
 
 ```json
 {
-  "message": "No query results for model [App\\Models\\Booking] 9999"
+  "success": false,
+  "message": "Not Found"
 }
 ```
 
