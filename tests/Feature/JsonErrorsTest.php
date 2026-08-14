@@ -22,4 +22,13 @@ class JsonErrorsTest extends TestCase
         $response->assertUnauthorized()
             ->assertJson(['success' => false]);
     }
+
+    public function test_unauthenticated_api_returns_json_without_accept_header(): void
+    {
+        $response = $this->get('/api/bookings');
+
+        $response->assertUnauthorized()
+            ->assertHeader('content-type', 'application/json')
+            ->assertJson(['success' => false, 'message' => 'Unauthenticated.']);
+    }
 }
