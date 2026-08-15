@@ -460,7 +460,9 @@ class XenditGatewayTest extends TestCase
         ]);
         $request->headers->set('X-Callback-Token', 'secret-token');
 
-        $this->assertTrue((new XenditGateway())->verifyWebhookSignature([], $request));
+        $payload = $request->all();
+
+        $this->assertTrue((new XenditGateway())->verifyWebhookSignature($payload, $request));
     }
 
     public function test_verify_webhook_rejects_wrong_token(): void
