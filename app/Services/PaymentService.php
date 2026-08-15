@@ -4,9 +4,10 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\Payment;
-use App\Services\Gateways\MidtransGateway;
 use App\Services\Gateways\MockGateway;
 use App\Services\Gateways\PaymentGateway;
+use App\Services\Gateways\XenditGateway;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -15,7 +16,7 @@ class PaymentService
     public function resolveGateway(): PaymentGateway
     {
         return match (config('payment.gateway', 'mock')) {
-            'midtrans' => new MidtransGateway(),
+            'xendit' => new XenditGateway(),
             default => new MockGateway(),
         };
     }
@@ -38,7 +39,7 @@ class PaymentService
                     'transaction_id' => $existing->transaction_id,
                     'amount' => $existing->amount,
                     'status' => $existing->status,
-                    'snap_token' => $gatewayResult['snap_token'],
+                    'invoice_url' => $gatewayResult['invoice_url'],
                     'payment_gateway' => $gateway->getName(),
                 ];
             }
@@ -60,14 +61,14 @@ class PaymentService
                 'transaction_id' => $payment->transaction_id,
                 'amount' => $payment->amount,
                 'status' => $payment->status,
-                'snap_token' => $gatewayResult['snap_token'],
+                'invoice_url' => $gatewayResult['invoice_url'],
                 'payment_gateway' => $gateway->getName(),
             ];
         });
     }
 
-    public function verifyWebhook(array $payload): bool
+    public function verifyWebhook(array $payload, ?Request $request = null): bool
     {
-        return $this->resolveGateway()->verifyWebhookSignature($payload);
+        return $this->resolveGateway()->verifyWebhookSignature($payload, $request);
     }
 }
