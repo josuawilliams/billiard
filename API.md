@@ -732,7 +732,7 @@ Contoh response (200):
 | Auth | User |
 | Body | `booking_id` (integer, required, harus ada di tabel `bookings` dan milik user) |
 
-Membuat pembayaran untuk booking `pending` milik user. Gateway aktif diambil dari `PAYMENT_GATEWAY` (`mock` default / `midtrans`). `transaction_id` dibuat otomatis berformat `INV-<booking_id>-<6 karakter acak>`. Untuk gateway `mock`, `snap_token` berformat `mock-<32 karakter acak>`.
+Membuat pembayaran untuk booking `pending` milik user. Gateway aktif diambil dari `PAYMENT_GATEWAY` (`mock` default / `xendit`). `transaction_id` dibuat otomatis berformat `INV-<booking_id>-<6 karakter acak>`. Untuk gateway `mock`, `invoice_url` berformat `https://invoice.mock.test/<32 karakter acak>`; untuk `xendit`, diambil dari API Xendit.
 
 Contoh request:
 
@@ -749,13 +749,13 @@ Contoh response (201):
 ```json
 {
   "success": true,
-  "message": "Payment created. Redirect customer to Midtrans Snap.",
+  "message": "Payment created. Redirect customer to Xendit invoice.",
   "data": {
     "payment_id": 2,
     "transaction_id": "INV-5-SOI9K3",
     "amount": "120000.00",
     "status": "pending",
-    "snap_token": "mock-zqR6bP5qLETYUMIwdhaJKpvuZfWFPPF5",
+    "invoice_url": "https://invoice.mock.test/abCdEfGhIjKlMnOpQrStUvWxYz123456",
     "payment_gateway": "mock"
   }
 }
@@ -847,25 +847,19 @@ Contoh response error (403 — payment milik user lain):
 |---|---|
 | Auth | Public |
 
-Webhook dari gateway (Midtrans) yang menandakan transaksi diproses. Payload berisi minimal:
+Webhook dari gateway (Xendit) yang menandakan transaksi diproses. Payload berisi minimal:
 
 | Field | Tipe | Keterangan |
 |---|---|---|
-| `order_id` | string | `transaction_id` payment (mis. `INV-5-SOI9K3`) |
-| `status_code` | string | Kode status Midtrans |
-| `gross_amount` | string | Jumlah pembayaran |
-| `transaction_status` | string | Salah satu: `capture`, `settlement` (sukses), atau lainnya (gagal) |
-| `signature_key` | string | Signature untuk verifikasi `sha512(order_id.status_code.gross_amount.server_key)` |
+| `external_id` | string | `transaction_id` payment (mis. `INV-5-SOI9K3`) |
+| `status` | string | `PAID` (sukses) atau lainnya (`EXPIRED`, `PENDING`, ...) |
+| `amount` | number | Jumlah pembayaran |
 
-**Cara menghitung signature (gateway `mock`, server key `mock-server-key`):**
+| Header | Keterangan |
+|---|---|
+| `X-Callback-Token` | Token verifikasi webhook dari dashboard Xendit; dibandingkan dengan `config('payment.xendit.callback_token')` memakai `hash_equals` |
 
-```bash
-SERVER_KEY="mock-server-key"  # dari config('payment.mock.server_key')
-echo -n "INV-6-NDRZEM20075000.00${SERVER_KEY}" | shasum -a 512
-# = e97b71f4d84f11cbf6bbc87f773bd9c715ef1b4c63c1b1ce6aa3af40faa7b2b6a9d20ae5fbbcb0169cc14b1b6c9a0b1b92a1a110b91d5058d0daf86ba6990493
-```
-
-Signature dihitung sebagai `sha512(order_id + status_code + gross_amount + server_key)` lalu dibandingkan menggunakan `hash_equals` dengan `signature_key`.
+Verifikasi: header `X-Callback-Token` pada request dibandingkan (dengan `hash_equals`) terhadap `XENDIT_CALLBACK_TOKEN` di `.env`. Jika tidak cocok → `401 Invalid signature`.
 
 Contoh request (webhook sukses):
 
@@ -873,12 +867,11 @@ Contoh request (webhook sukses):
 curl -X POST http://localhost:8000/api/payment/webhook \
   -H "Content-Type: application/json" \
   -H "Accept: application/json" \
+  -H "X-Callback-Token: <token>" \
   -d '{
-    "order_id": "INV-6-NDRZEM",
-    "status_code": "200",
-    "gross_amount": "75000.00",
-    "transaction_status": "settlement",
-    "signature_key": "e97b71f4d84f11cbf6bbc87f773bd9c715ef1b4c63c1b1ce6aa3af40faa7b2b6a9d20ae5fbbcb0169cc14b1b6c9a0b1b92a1a110b91d5058d0daf86ba6990493"
+    "external_id": "INV-6-NDRZEM",
+    "status": "PAID",
+    "amount": 75000
   }'
 ```
 
@@ -924,7 +917,7 @@ Contoh response (200 — replay, sudah diproses):
 }
 ```
 
-Contoh response (200 — webhook dengan `transaction_status` selain `capture`/`settlement`, payment menjadi `failed`):
+Contoh response (200 — webhook dengan `status` selain `PAID`, payment menjadi `failed`):
 
 ```json
 {
@@ -933,7 +926,7 @@ Contoh response (200 — webhook dengan `transaction_status` selain `capture`/`s
   "data": {
     "id": 6,
     "booking_id": 8,
-    "payment_gateway": "mock",
+    "payment_gateway": "xendit",
     "transaction_id": "INV-8-TMKB2A",
     "amount": "50000.00",
     "status": "failed",
@@ -953,7 +946,7 @@ Contoh response error (401 — signature salah):
 }
 ```
 
-Contoh response error (404 — `order_id` tidak ditemukan):
+Contoh response error (404 — `external_id` tidak ditemukan):
 
 ```json
 {
