@@ -3,6 +3,7 @@
 namespace App\Services\Gateways;
 
 use App\Models\Payment;
+use Illuminate\Http\Request;
 
 interface PaymentGateway
 {
@@ -10,5 +11,5 @@ interface PaymentGateway
 
     public function createTransaction(Payment $payment): array;
 
-    public function verifyWebhookSignature(array $payload): bool;
+    public function verifyWebhookSignature(array $payload, ?Request $request = null): bool;
 }
