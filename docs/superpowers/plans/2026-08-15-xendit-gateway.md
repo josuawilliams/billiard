@@ -130,10 +130,112 @@ git commit -m "feat: add xendit payment config"
 - Modify: `app/Services/Gateways/PaymentGateway.php`
 - Modify: `app/Services/Gateways/MockGateway.php`
 - Create: `tests/Feature/PaymentGatewayMockTest.php`
+- Create: `database/factories/TableFactory.php`
+- Create: `database/factories/BookingFactory.php`
+- Create: `database/factories/PaymentFactory.php`
 
 **Interfaces:**
 - Consumes: `config('payment.mock.server_key')`.
-- Produces: interface `verifyWebhookSignature(array $payload, ?Request $request = null): bool`. `MockGateway::createTransaction` returns `['invoice_url' => string]`.
+- Produces: interface `verifyWebhookSignature(array $payload, ?Request $request = null): bool`. `MockGateway::createTransaction` returns `['invoice_url' => string]`. `MockGateway::verifyWebhookSignature` returns `true` when the payload contains `external_id` (permissive — mock trusts webhooks for local testing).
+
+- [ ] **Step 0: Create test factories**
+
+Create `database/factories/TableFactory.php`:
+
+```php
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Table;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Table>
+ */
+class TableFactory extends Factory
+{
+    protected $model = Table::class;
+
+    public function definition(): array
+    {
+        return [
+            'name' => 'Table '.fake()->unique()->numberBetween(1, 99),
+            'price_per_hour' => fake()->randomFloat(2, 50000, 150000),
+        ];
+    }
+}
+```
+
+Create `database/factories/BookingFactory.php`:
+
+```php
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Booking;
+use App\Models\Table;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends Factory<Booking>
+ */
+class BookingFactory extends Factory
+{
+    protected $model = Booking::class;
+
+    public function definition(): array
+    {
+        $start = fake()->randomElement(['13:00', '14:00', '15:00', '16:00']);
+        $duration = fake()->numberBetween(1, 3);
+
+        return [
+            'user_id' => User::factory(),
+            'table_id' => Table::factory(),
+            'booking_date' => fake()->date(),
+            'start_time' => $start,
+            'end_time' => Carbon::parse($start)->addHours($duration)->format('H:i'),
+            'total_price' => fake()->randomFloat(2, 50000, 500000),
+            'status' => 'pending',
+        ];
+    }
+}
+```
+
+Create `database/factories/PaymentFactory.php`:
+
+```php
+<?php
+
+namespace Database\Factories;
+
+use App\Models\Booking;
+use App\Models\Payment;
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
+
+/**
+ * @extends Factory<Payment>
+ */
+class PaymentFactory extends Factory
+{
+    protected $model = Payment::class;
+
+    public function definition(): array
+    {
+        return [
+            'booking_id' => Booking::factory(),
+            'payment_gateway' => 'mock',
+            'transaction_id' => 'INV-'.Str::upper(Str::random(6)),
+            'amount' => fake()->randomFloat(2, 50000, 500000),
+            'status' => 'pending',
+        ];
+    }
+}
+```
 
 - [ ] **Step 1: Write failing tests**
 
@@ -170,13 +272,17 @@ class PaymentGatewayMockTest extends TestCase
     public function test_mock_gateway_webhook_signature_with_request(): void
     {
         $payload = [
-            'signature_key' => 'abc',
-            'order_id' => 'INV-1-ABC',
-            'status_code' => '200',
-            'gross_amount' => '10000',
+            'external_id' => 'INV-1-ABC',
+            'status' => 'PAID',
+            'amount' => '10000',
         ];
 
         $this->assertTrue((new MockGateway())->verifyWebhookSignature($payload, new Request()));
+    }
+
+    public function test_mock_gateway_webhook_signature_rejects_without_external_id(): void
+    {
+        $this->assertFalse((new MockGateway())->verifyWebhookSignature([], new Request()));
     }
 
     public function test_payment_service_resolves_xendit_when_configured(): void
@@ -246,19 +352,7 @@ class MockGateway implements PaymentGateway
 
     public function verifyWebhookSignature(array $payload, ?Request $request = null): bool
     {
-        $signature = $payload['signature_key'] ?? null;
-        $orderId = $payload['order_id'] ?? null;
-        $statusCode = $payload['status_code'] ?? null;
-        $grossAmount = $payload['gross_amount'] ?? null;
-
-        if (! $signature || ! $orderId || ! $statusCode || ! $grossAmount) {
-            return false;
-        }
-
-        return hash_equals(
-            hash('sha512', $orderId.$statusCode.$grossAmount.config('payment.mock.server_key')),
-            $signature
-        );
+        return isset($payload['external_id']);
     }
 }
 ```
@@ -271,7 +365,7 @@ Expected: `test_mock_gateway_returns_invoice_url` and `test_mock_gateway_webhook
 - [ ] **Step 6: Commit**
 
 ```bash
-git add app/Services/Gateways/PaymentGateway.php app/Services/Gateways/MockGateway.php tests/Feature/PaymentGatewayMockTest.php
+git add app/Services/Gateways/PaymentGateway.php app/Services/Gateways/MockGateway.php tests/Feature/PaymentGatewayMockTest.php database/factories/
 git commit -m "feat: update PaymentGateway interface and MockGateway to invoice_url"
 ```
 
@@ -750,10 +844,12 @@ class PaymentWebhookTest extends TestCase
 
     public function test_webhook_invalid_signature_returns_401(): void
     {
+        config(['payment.gateway' => 'xendit']);
+        config(['payment.xendit.callback_token' => 'secret-token']);
         $this->makePayment();
 
         $response = $this->post('/api/payment/webhook', [
-            'external_id' => 'UNKNOWN',
+            'external_id' => 'INV-1-WBHOOK',
             'status' => 'PAID',
             'amount' => 100000,
         ], ['Accept' => 'application/json']);
