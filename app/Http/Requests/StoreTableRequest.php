@@ -18,4 +18,16 @@ class StoreTableRequest extends FormRequest
             'price_per_hour' => ['required', 'numeric', 'min:0'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama tabel wajib diisi.',
+            'name.string' => 'Nama tabel harus berupa teks.',
+            'name.max' => 'Nama tabel maksimal :max karakter.',
+            'price_per_hour.required' => 'Harga per jam wajib diisi.',
+            'price_per_hour.numeric' => 'Harga per jam harus berupa angka.',
+            'price_per_hour.min' => 'Harga per jam minimal :min.',
+        ];
+    }
 }
