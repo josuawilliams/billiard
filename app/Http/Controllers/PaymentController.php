@@ -29,7 +29,7 @@ class PaymentController extends Controller
 
         $result = $this->paymentService->createPayment($booking);
 
-        return ApiResponse::success($result, 'Payment created. Redirect customer to Midtrans Snap.', 201);
+        return ApiResponse::success($result, 'Payment created. Redirect customer to Xendit invoice.', 201);
     }
 
     public function status(Request $request, Payment $payment)
@@ -45,11 +45,11 @@ class PaymentController extends Controller
     {
         $payload = $request->all();
 
-        if (! $this->paymentService->verifyWebhook($payload)) {
+        if (! $this->paymentService->verifyWebhook($payload, $request)) {
             return ApiResponse::error('Invalid signature', 401);
         }
 
-        $payment = Payment::where('transaction_id', $payload['order_id'])->first();
+        $payment = Payment::where('transaction_id', $payload['external_id'])->first();
 
         if (! $payment) {
             return ApiResponse::error('Payment not found', 404);
@@ -59,7 +59,7 @@ class PaymentController extends Controller
             return ApiResponse::success($payment, 'Payment already processed');
         }
 
-        $isSuccess = in_array($payload['transaction_status'] ?? null, ['capture', 'settlement']);
+        $isSuccess = ($payload['status'] ?? null) === 'PAID';
 
         DB::transaction(function () use ($payment, $isSuccess) {
             if ($isSuccess) {
