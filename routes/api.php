@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\PaymentReportController;
 use App\Http\Controllers\TableController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,5 +32,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/admin/bookings', [BookingController::class, 'adminBookings']);
         Route::post('/admin/bookings/{booking}/cancel', [BookingController::class, 'adminCancel']);
         Route::get('/admin/payments', [PaymentController::class, 'adminPayments']);
+        Route::get('/admin/payment-reports', [PaymentReportController::class, 'index']);
     });
 });
