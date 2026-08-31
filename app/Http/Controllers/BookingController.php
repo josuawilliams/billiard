@@ -45,11 +45,41 @@ class BookingController extends Controller
         return ApiResponse::success($booking->load('table', 'payment'), 'Booking retrieved');
     }
 
+    public function cancel(Request $request, Booking $booking)
+    {
+        if ($booking->user_id !== $request->user()->id) {
+            return ApiResponse::error('Forbidden', 403);
+        }
+
+        if (!in_array($booking->status, ['pending', 'paid'], true)) {
+            return ApiResponse::error('Booking cannot be cancelled', 422);
+        }
+
+        $booking->update(['status' => 'cancelled']);
+
+        return ApiResponse::success($booking->load('table', 'payment'), 'Booking cancelled');
+    }
+
+    public function adminCancel(Booking $booking)
+    {
+        if (!in_array($booking->status, ['pending', 'paid'], true)) {
+            return ApiResponse::error('Booking cannot be cancelled', 422);
+        }
+
+        $booking->update(['status' => 'cancelled']);
+
+        return ApiResponse::success($booking->load('user', 'table', 'payment'), 'Booking cancelled by admin');
+    }
+
     public function adminBookings(Request $request)
     {
         $bookings = Booking::with('user', 'table', 'payment')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->when($request->booking_date, fn ($q, $date) => $q->where('booking_date', $date))
+            ->when($request->search, function ($q, $search) {
+                $q->whereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('table', fn ($t) => $t->where('name', 'like', "%{$search}%"));
+            })
             ->orderByDesc('created_at')
             ->paginate(20);
 
