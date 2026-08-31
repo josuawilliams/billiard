@@ -50,6 +50,11 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
 
-        return ApiResponse::success(null, 'Logged out successfully');
+        return ApiResponse::success(null, 'Logged out');
+    }
+
+    public function me(Request $request)
+    {
+        return ApiResponse::success($request->user(), 'User profile retrieved');
     }
 }

@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::get('/tables/schedule', [TableController::class, 'schedule']);
 Route::post('/payment/webhook', [PaymentController::class, 'webhook']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-
-    Route::get('/tables', [TableController::class, 'index']);
+    Route::get('/me', [AuthController::class, 'me']);
 
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings', [BookingController::class, 'index']);
@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payment/status/{payment}', [PaymentController::class, 'status']);
 
     Route::middleware('admin')->group(function () {
+        Route::get('/admin/tables', [TableController::class, 'index']);
         Route::post('/tables', [TableController::class, 'store']);
         Route::put('/tables/{table}', [TableController::class, 'update']);
         Route::delete('/tables/{table}', [TableController::class, 'destroy']);
