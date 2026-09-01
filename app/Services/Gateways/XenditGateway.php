@@ -18,6 +18,7 @@ class XenditGateway implements PaymentGateway
         $booking = $payment->booking;
 
         $response = Http::withBasicAuth(config('payment.xendit.api_key'), '')
+            ->withoutVerifying()
             ->post('https://api.xendit.co/v2/invoices', [
                 'external_id' => $payment->transaction_id,
                 'description' => 'Booking Billiard #'.$booking->id,
